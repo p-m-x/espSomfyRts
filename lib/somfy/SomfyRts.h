@@ -12,16 +12,16 @@
 
 #define REMOTE 0x121300              //<-- Change it!
 
-uint16_t newRollingCode = 101;       //<-- Change it!
-uint16_t rollingCode = 0;
-unsigned char frame[7];
-char checksum;
+
 
 class SomfyRts {
 
   private:
     bool _debug;
     uint8_t _tx_pin;
+    uint16_t newRollingCode = 101;       //<-- Change it!
+    uint16_t rollingCode = 0;
+    char checksum;
 
   public:
     SomfyRts(uint8_t tx_pin, bool debug);

@@ -3,7 +3,6 @@
 SomfyRts::SomfyRts(uint8_t tx_pin, bool debug) {
     _debug = debug;
     _tx_pin = tx_pin;
-    
     pinMode(_tx_pin, OUTPUT);
     digitalWrite(_tx_pin, LOW);
 
@@ -40,7 +39,7 @@ void SomfyRts::buildFrame(unsigned char *frame, unsigned char button) {
                 Serial.print(frame[i],HEX); Serial.print(" ");
         }
     }
-  
+
     // Checksum calculation: a XOR of all the nibbles
     checksum = 0;
     for(byte i = 0; i < 7; i++) {
@@ -79,7 +78,7 @@ void SomfyRts::buildFrame(unsigned char *frame, unsigned char button) {
         Serial.println("");
         Serial.print("Rolling Code  : "); Serial.println(code);
     }
-    
+
     EEPROM.put(EEPROM_ADDRESS, code + 1);   //  We store the value of the rolling code in the
                                             // EEPROM. It should take up to 2 adresses but the
                                             // Arduino function takes care of it.
@@ -107,8 +106,8 @@ void SomfyRts::sendCommand(unsigned char *frame, unsigned char sync) {
     delayMicroseconds(4550);
     digitalWrite(_tx_pin, LOW);
     delayMicroseconds(SYMBOL);
-  
-  
+
+
     //Data: bits are sent one by one, starting with the MSB.
     for(byte i = 0; i < 56; i++) {
         if(((frame[i/8] >> (7 - (i%8))) & 1) == 1) {
@@ -126,8 +125,7 @@ void SomfyRts::sendCommand(unsigned char *frame, unsigned char sync) {
             delayMicroseconds(SYMBOL);
         }
     }
-    
+
     digitalWrite(_tx_pin, LOW);
     delayMicroseconds(30415); // Inter-frame silence
 }
-
