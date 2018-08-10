@@ -10,7 +10,7 @@
 #define PROG 0x8
 #define EEPROM_ADDRESS 0
 
-#define REMOTE 0x121300    //<-- Change it!
+#define REMOTE 0x121300              //<-- Change it!
 
 uint16_t newRollingCode = 101;       //<-- Change it!
 uint16_t rollingCode = 0;
@@ -18,20 +18,16 @@ unsigned char frame[7];
 char checksum;
 
 class SomfyRts {
+
+  private:
     bool _debug;
     uint8_t _tx_pin;
 
-    void init();
-
   public:
-    SomfyRts(bool debug, uint8_t tx_pin) {
-      _debug = debug;
-      _tx_pin = tx_pin;
-      init();
-    };
-
-    // void buildFrame(unsigned char *frame, unsigned char button);
-    // void sendCommand(unsigned char *frame, unsigned char sync);
+    SomfyRts(uint8_t tx_pin, bool debug);
+    SomfyRts(uint8_t tx_pin);
+    void buildFrame(unsigned char *frame, unsigned char button);
+    void sendCommand(unsigned char *frame, unsigned char sync);
 };
 
 #endif
