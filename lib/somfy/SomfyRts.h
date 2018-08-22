@@ -19,13 +19,19 @@ class SomfyRts {
   private:
     bool _debug;
     uint8_t _tx_pin;
-    uint16_t newRollingCode = 101;       //<-- Change it!
+    uint16_t newRollingCode = 186;       //<-- Change it!
     uint16_t rollingCode = 0;
+    unsigned char _frame[7];
     char checksum;
 
   public:
-    SomfyRts(uint8_t tx_pin, bool debug);
-    SomfyRts(uint8_t tx_pin);
+    SomfyRts(bool debug);
+    SomfyRts();
+    void init(uint8_t tx_pin);
+    void sendCommandUp();
+    void sendCommandDown();
+    void sendCommandStop();
+    void sendCommandProg();
     void buildFrame(unsigned char *frame, unsigned char button);
     void sendCommand(unsigned char *frame, unsigned char sync);
 };

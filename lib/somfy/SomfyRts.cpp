@@ -1,26 +1,33 @@
 #include "SomfyRts.h"
 
-SomfyRts::SomfyRts(uint8_t tx_pin, bool debug) {
+SomfyRts::SomfyRts(bool debug) {
     _debug = debug;
-    _tx_pin = tx_pin;
-    pinMode(_tx_pin, OUTPUT);
-    digitalWrite(_tx_pin, LOW);
-
-    if (EEPROM.get(EEPROM_ADDRESS, rollingCode) < newRollingCode) {
-        EEPROM.put(EEPROM_ADDRESS, newRollingCode);
-    }
-    if (Serial) {
-        Serial.print("Simulated remote number : "); Serial.println(REMOTE, HEX);
-        Serial.print("Current rolling code    : "); Serial.println(rollingCode);
-    }
 }
 
-SomfyRts::SomfyRts(uint8_t tx_pin) {
-    SomfyRts(tx_pin, false);
+SomfyRts::SomfyRts() {
+    SomfyRts(false);
+}
+
+void SomfyRts::init(uint8_t tx_pin) {
+  _tx_pin = tx_pin;
+  pinMode(_tx_pin, OUTPUT);
+  digitalWrite(_tx_pin, LOW);
+
+  EEPROM.begin(sizeof(newRollingCode));
+  if (EEPROM.get(EEPROM_ADDRESS, rollingCode) < newRollingCode) {
+      EEPROM.put(EEPROM_ADDRESS, newRollingCode);
+  }
+  EEPROM.end();
+
+  if (Serial) {
+      Serial.print("Simulated remote number : "); Serial.println(REMOTE, HEX);
+      Serial.print("Current rolling code    : "); Serial.println(rollingCode);
+  }
 }
 
 void SomfyRts::buildFrame(unsigned char *frame, unsigned char button) {
     unsigned int code;
+    EEPROM.begin(sizeof(code));
     EEPROM.get(EEPROM_ADDRESS, code);
     frame[0] = 0xA7;         // Encryption key. Doesn't matter much
     frame[1] = button << 4;  // Which button did  you press? The 4 LSB will be the checksum
@@ -79,9 +86,11 @@ void SomfyRts::buildFrame(unsigned char *frame, unsigned char button) {
         Serial.print("Rolling Code  : "); Serial.println(code);
     }
 
+    EEPROM.begin(sizeof(code));
     EEPROM.put(EEPROM_ADDRESS, code + 1);   //  We store the value of the rolling code in the
                                             // EEPROM. It should take up to 2 adresses but the
                                             // Arduino function takes care of it.
+    EEPROM.end();
 }
 
 void SomfyRts::sendCommand(unsigned char *frame, unsigned char sync) {
@@ -128,4 +137,36 @@ void SomfyRts::sendCommand(unsigned char *frame, unsigned char sync) {
 
     digitalWrite(_tx_pin, LOW);
     delayMicroseconds(30415); // Inter-frame silence
+}
+
+void SomfyRts::sendCommandUp() {
+    buildFrame(_frame, HAUT);
+    sendCommand(_frame, 2);
+    for(int i = 0; i<2; i++) {
+      sendCommand(_frame, 7);
+    }
+}
+
+void SomfyRts::sendCommandDown() {
+    buildFrame(_frame, BAS);
+    sendCommand(_frame, 2);
+    for(int i = 0; i<2; i++) {
+      sendCommand(_frame, 7);
+    }
+}
+
+void SomfyRts::sendCommandStop() {
+    buildFrame(_frame, STOP);
+    sendCommand(_frame, 2);
+    for(int i = 0; i<2; i++) {
+      sendCommand(_frame, 7);
+    }
+}
+
+void SomfyRts::sendCommandProg() {
+    buildFrame(_frame, PROG);
+    sendCommand(_frame, 2);
+    for(int i = 0; i<2; i++) {
+      sendCommand(_frame, 7);
+    }
 }
