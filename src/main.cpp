@@ -83,15 +83,11 @@ void loop() {
       }
 
       Serial.println("");
-<<<<<<< HEAD
-
-=======
       somfyRts.sendCommand(frame, 2);
       for(int i = 0; i<2; i++) {
         somfyRts.sendCommand(frame, 7);
       }
       digitalWrite(STATUS_LED_PIN, HIGH);
->>>>>>> fea6449aee4957c6ab21a21f55b10290ad9e2ae6
    }
 }
 
