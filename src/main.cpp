@@ -4,14 +4,21 @@
 
 #define PORT_TX D0
 
-SomfyRts somfyRts(PORT_TX);
+SomfyRts somfyRts;
 
 unsigned char frame[7];
 
 void setup() {
-    Serial.begin(115200);
-    while(!Serial) {
-    }
+    Serial.begin(9600);
+
+    Serial.println("Somfy Rrs & Simu Hz WiFi Gate v0.0.1");
+    Serial.println("Serial port commands:");
+    Serial.println("u - move up");
+    Serial.println("d - move down");
+    Serial.println("s - stop");
+    Serial.println("p - programing mode");
+
+    somfyRts.init(PORT_TX);
 
 }
 
@@ -21,31 +28,27 @@ void loop() {
       Serial.println("");
   //    Serial.print("Remote : "); Serial.println(REMOTE, HEX);
       if(serie == 'm'||serie == 'u'||serie == 'h') {
-        Serial.println("Monte"); // Somfy is a French company, after all.
-        somfyRts.buildFrame(frame, HAUT);
+        Serial.println("Move up"); // Somfy is a French company, after all.
+        somfyRts.sendCommandUp();
       }
       else if(serie == 's') {
         Serial.println("Stop");
-        somfyRts.buildFrame(frame, STOP);
+        somfyRts.sendCommandStop();
       }
       else if(serie == 'b'||serie == 'd') {
-        Serial.println("Descend");
-        somfyRts.buildFrame(frame, BAS);
+        Serial.println("Move down");
+        somfyRts.sendCommandDown();
       }
       else if(serie == 'p') {
         Serial.println("Prog");
-        somfyRts.buildFrame(frame, PROG);
+        somfyRts.sendCommandProg();
       }
       else {
         Serial.println("Custom code");
-        somfyRts.buildFrame(frame, serie);
       }
 
       Serial.println("");
-      somfyRts.sendCommand(frame, 2);
-      for(int i = 0; i<2; i++) {
-        somfyRts.sendCommand(frame, 7);
-      }
+
    }
 
 }
