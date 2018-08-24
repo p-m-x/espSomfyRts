@@ -8,7 +8,7 @@ Just make POST request to the device endpoint `/remote` with JSON body
 ```
 curl -XPOST http://192.168.1.10/remote -d '{"remoteId":1,"cmd":"UP"}'
 ```
-This version of Somfy RTS gate suppport 10 (from #1 to #10) remote devices but i can be simply changed in code. Supported commands are: UP, DOWN, STOP, PROG and any other will cause 400 Bad request response
+This version of Somfy RTS gate suppport 10 (from #1 to #10) remote devices but it can be simply changed in code. Supported commands are: UP, DOWN, STOP, PROG and any other will cause 400 Bad request response
 
 ---
 > If you want to learn more about the Somfy RTS protocol, check out [Pushtack](https://pushstack.wordpress.com/somfy-rts-protocol/).
