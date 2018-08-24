@@ -1,41 +1,39 @@
 #include "SomfyRts.h"
+#include "FS.h"
 
-SomfyRts::SomfyRts(bool debug) {
+SomfyRts::SomfyRts(uint32_t remoteID, bool debug) {
     _debug = debug;
+    _remoteId = remoteID;
 }
 
-SomfyRts::SomfyRts() {
-    SomfyRts(false);
+SomfyRts::SomfyRts(uint32_t remoteID) {
+  _debug = false;
+  _remoteId = remoteID;
 }
 
-void SomfyRts::init(uint8_t tx_pin) {
-  _tx_pin = tx_pin;
-  pinMode(_tx_pin, OUTPUT);
-  digitalWrite(_tx_pin, LOW);
+void SomfyRts::init() {
+  pinMode(REMOTE_TX_PIN, OUTPUT);
+  digitalWrite(REMOTE_TX_PIN, LOW);
 
-  EEPROM.begin(sizeof(newRollingCode));
-  if (EEPROM.get(EEPROM_ADDRESS, rollingCode) < newRollingCode) {
-      EEPROM.put(EEPROM_ADDRESS, newRollingCode);
+  rollingCode = _readRemoteRollingCode();
+  if (rollingCode < newRollingCode) {
+    _writeRemoteRollingCode(newRollingCode);
   }
-  EEPROM.end();
-
   if (Serial) {
-      Serial.print("Simulated remote number : "); Serial.println(REMOTE, HEX);
+      Serial.print("Simulated remote number : "); Serial.println(_remoteId, HEX);
       Serial.print("Current rolling code    : "); Serial.println(rollingCode);
   }
 }
 
 void SomfyRts::buildFrame(unsigned char *frame, unsigned char button) {
-    unsigned int code;
-    EEPROM.begin(sizeof(code));
-    EEPROM.get(EEPROM_ADDRESS, code);
-    frame[0] = 0xA7;         // Encryption key. Doesn't matter much
-    frame[1] = button << 4;  // Which button did  you press? The 4 LSB will be the checksum
-    frame[2] = code >> 8;    // Rolling code (big endian)
-    frame[3] = code;         // Rolling code
-    frame[4] = REMOTE >> 16; // Remote address
-    frame[5] = REMOTE >>  8; // Remote address
-    frame[6] = REMOTE;       // Remote address
+    unsigned int code = _readRemoteRollingCode();
+    frame[0] = 0xA7;            // Encryption key. Doesn't matter much
+    frame[1] = button << 4;     // Which button did  you press? The 4 LSB will be the checksum
+    frame[2] = code >> 8;       // Rolling code (big endian)
+    frame[3] = code;            // Rolling code
+    frame[4] = _remoteId >> 16; // Remote address
+    frame[5] = _remoteId >>  8; // Remote address
+    frame[6] = _remoteId;       // Remote address
 
     if (Serial) {
         Serial.print("Frame         : ");
@@ -86,56 +84,53 @@ void SomfyRts::buildFrame(unsigned char *frame, unsigned char button) {
         Serial.print("Rolling Code  : "); Serial.println(code);
     }
 
-    EEPROM.begin(sizeof(code));
-    EEPROM.put(EEPROM_ADDRESS, code + 1);   //  We store the value of the rolling code in the
-                                            // EEPROM. It should take up to 2 adresses but the
-                                            // Arduino function takes care of it.
-    EEPROM.end();
+    //  We store the value of the rolling code in the FS
+    _writeRemoteRollingCode(code + 1);
 }
 
 void SomfyRts::sendCommand(unsigned char *frame, unsigned char sync) {
     if(sync == 2) { // Only with the first frame.
         // Wake-up pulse & Silence
-        digitalWrite(_tx_pin, HIGH);
+        digitalWrite(REMOTE_TX_PIN, HIGH);
         delayMicroseconds(9415);
-        digitalWrite(_tx_pin, LOW);
+        digitalWrite(REMOTE_TX_PIN, LOW);
         delayMicroseconds(89565);
     }
 
     // Hardware sync: two sync for the first frame, seven for the following ones.
     for (int i = 0; i < sync; i++) {
-        digitalWrite(_tx_pin, HIGH);
+        digitalWrite(REMOTE_TX_PIN, HIGH);
         delayMicroseconds(4*SYMBOL);
-        digitalWrite(_tx_pin, LOW);
+        digitalWrite(REMOTE_TX_PIN, LOW);
         delayMicroseconds(4*SYMBOL);
     }
 
     // Software sync
-    digitalWrite(_tx_pin, HIGH);
+    digitalWrite(REMOTE_TX_PIN, HIGH);
     delayMicroseconds(4550);
-    digitalWrite(_tx_pin, LOW);
+    digitalWrite(REMOTE_TX_PIN, LOW);
     delayMicroseconds(SYMBOL);
 
 
     //Data: bits are sent one by one, starting with the MSB.
     for(byte i = 0; i < 56; i++) {
         if(((frame[i/8] >> (7 - (i%8))) & 1) == 1) {
-            digitalWrite(_tx_pin, LOW);
+            digitalWrite(REMOTE_TX_PIN, LOW);
             delayMicroseconds(SYMBOL);
             // PORTD ^= 1<<5;
-            digitalWrite(_tx_pin, HIGH);
+            digitalWrite(REMOTE_TX_PIN, HIGH);
             delayMicroseconds(SYMBOL);
         }
         else {
-            digitalWrite(_tx_pin, HIGH);
+            digitalWrite(REMOTE_TX_PIN, HIGH);
             delayMicroseconds(SYMBOL);
             // PORTD ^= 1<<5;
-            digitalWrite(_tx_pin, LOW);
+            digitalWrite(REMOTE_TX_PIN, LOW);
             delayMicroseconds(SYMBOL);
         }
     }
 
-    digitalWrite(_tx_pin, LOW);
+    digitalWrite(REMOTE_TX_PIN, LOW);
     delayMicroseconds(30415); // Inter-frame silence
 }
 
@@ -169,4 +164,45 @@ void SomfyRts::sendCommandProg() {
     for(int i = 0; i<2; i++) {
       sendCommand(_frame, 7);
     }
+}
+
+uint16_t SomfyRts::_readRemoteRollingCode() {
+  uint16_t code = 0;
+  SPIFFS.begin();
+  if (SPIFFS.exists(_getConfigFilename())) {
+    File f = SPIFFS.open(_getConfigFilename(), "r");
+    if (f) {
+      String line = f.readStringUntil('\n');
+      code = line.toInt();
+      f.close();
+    }
+    else {
+      Serial.println("File open failed");
+    }
+  }
+  SPIFFS.end();
+  return code;
+}
+
+void SomfyRts::_writeRemoteRollingCode(uint16_t code) {
+
+  SPIFFS.begin();
+
+  File f = SPIFFS.open(_getConfigFilename(), "w");
+  if (f) {
+    f.println(code);
+    f.close();
+  }
+  else {
+    Serial.println("File creation failed");
+  }
+  SPIFFS.end();
+}
+
+String SomfyRts::_getConfigFilename() {
+  String path = "/data/remote/";
+  path += _remoteId;
+  path += ".txt";
+  Serial.println(path);
+  return path;
 }
